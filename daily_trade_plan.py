@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime, timezone, timedelta
 import streamlit as st
 
-# --- Binance API base URLs (with fallback) ---
+# --- Binance API base URLs ---
 base_urls = [
     "https://data.binance.com",
     "https://api.binance.us"
@@ -30,7 +30,7 @@ def get_daily_data(symbol):
                 continue
             y_open = float(data[0][1])
             y_close = float(data[1][4])
-            y_open_time = datetime.fromtimestamp(data[1][0]/1000, tz=timezone.utc).strftime('%Y-%m-%d')
+            y_open_time = datetime.fromtimestamp(data[1][0] / 1000, tz=timezone.utc).strftime('%Y-%m-%d')
             return y_open_time, y_open, y_close
         except Exception as e:
             print(f"⚠️ {base_url} failed for {symbol}: {e}")
@@ -57,7 +57,7 @@ for symbol in symbols:
         trade_time = (
             datetime.fromisoformat(date)
             .replace(tzinfo=timezone.utc) + timedelta(days=1)
-        ).strftime('%Y-%m-%d %I:%M %p UTC')
+        ).strftime('%Y-%m-%d %I:%M %p')
     except Exception as e:
         st.warning(f"⚠️ Skip {symbol}: {e}")
         continue
@@ -98,8 +98,29 @@ for symbol in symbols:
     })
 
 # --- Display results ---
-df = pd.DataFrame(records).sort_values('Score(%)', ascending=False).reset_index(drop=True)
-st.dataframe(df)
+df = pd.DataFrame(records)
+df_buy = df[df["Advice"] == "Buy"].sort_values("Score(%)", ascending=False).reset_index(drop=True)
+top = df_buy.head(3)
+
+# --- Trade Plan Output Format ---
+if not top.empty:
+    trade_time_display = top.loc[0, "Trade Time"]
+    st.markdown(f"### ⏰ Next Daily Candle Trade Plan (Entry at {trade_time_display})\n")
+
+    for i, row in top.iterrows():
+        st.markdown(f"""
+📌 **{row['Symbol']}**: {row['Advice']}  
+Investment: **{row['Investment (USDT)']} USDT**  
+Entry: {row['Entry Price']}, Target: {row['Target']}, Stop: {row['Stop-Loss']}  
+Score: {row['Score(%)']}%  
+Estimated Profit: **{row['Estimated Profit (USDT)']} USDT**  
+""")
+else:
+    st.info("⚠️ No trade signals above thresholds.")
+
+# --- Full Data Table (Optional) ---
+with st.expander("🔍 View Full Table"):
+    st.dataframe(df)
 
 # --- Donation Section ---
 st.markdown("---")
@@ -107,7 +128,7 @@ st.markdown("## 💖 Crypto Donations Welcome")
 st.markdown("""
 If this app helped you, consider donating:
 
-- **BTC:** `bc1qlaact2ldakvwqa7l9xd3lhp4ggrvezs0npklte`
+- **BTC:** `bc1qlaact2ldakvwqa7l9xd3lhp4ggrvezs0npklte`  
 - **TRX / USDT (TRC20):** `TBMrjoyxAuKTxBxPtaWB6uc9U5PX4JMfFu`
 
 You can also scan the QR code below 👇
